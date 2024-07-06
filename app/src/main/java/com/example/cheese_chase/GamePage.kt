@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -51,11 +52,14 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import kotlinx.coroutines.delay
 
 @Composable
 fun GamePage(navController: NavController){
+    val gameViewModel: MainViewModel = viewModel()
+    val viewState by gameViewModel.infoState
     val context = LocalContext.current
     val preferencesManager = PreferencesManager(context)
     val digital = FontFamily(Font(R.font.digital))
@@ -118,8 +122,9 @@ fun GamePage(navController: NavController){
     var columnTom by remember {
         mutableStateOf(2)
     }
+    var temp = viewState.obstacleLimit.obstacleLimit
     var tomState by remember {
-        mutableStateOf(0)
+        mutableStateOf(2 - viewState.obstacleLimit.obstacleLimit)
     }
     var collided by remember{
         mutableStateOf(-1)
@@ -942,6 +947,10 @@ fun GamePage(navController: NavController){
             }
         }
 
+        LaunchedEffect(key1 = temp) {
+            tomState = 2 - temp
+            lives = temp
+        }
 
         if (revived.value){
             lives = 2
@@ -958,7 +967,7 @@ fun GamePage(navController: NavController){
             type.clear()
             column = 2
             columnTom = 2
-            tomState = 0
+            tomState = 2 - viewState.obstacleLimit.obstacleLimit
             collided = -1
             pause = false
             reset.value = false
@@ -968,7 +977,7 @@ fun GamePage(navController: NavController){
             incr = 0f
             endgame = 0
             speed = 10f
-            lives = 2
+            lives = viewState.obstacleLimit.obstacleLimit
             powerTimer = 0
             grantedPower = -1
             grantedTrap = -1
@@ -980,6 +989,18 @@ fun GamePage(navController: NavController){
         if (toHome.value){
             navController.navigate(Screen.MainPage.route)
             toHome.value = false
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Transparent)
+        ){
+            Text(text = "$temp")
+            Text(
+                modifier = Modifier.align(Alignment.TopEnd),
+                text = "${viewState.obstacleLimit.obstacleLimit}"
+            )
         }
     }
 
