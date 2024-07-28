@@ -2,8 +2,9 @@ package com.example.cheese_chase
 
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.http.Body
 import retrofit2.http.GET
-import retrofit2.http.Query
+import retrofit2.http.POST
 
 
 private val retrofit = Retrofit
@@ -13,10 +14,13 @@ private val retrofit = Retrofit
     .build()
 
 val gameService = retrofit.create(ApiServices::class.java)
-interface ApiServices{
+interface ApiServices {
     @GET("/obstacleLimit")
     suspend fun getObstacleLimit(): ObstacleLimit
 
-    @GET("/image")
-    suspend fun getImage(@Query("character") character: String): ImageResponse
+    @GET("/hitHindrance")
+    suspend fun getTrap(): Trap
+
+    @POST("/obstacleCourse")
+    suspend fun getObstacleCourse(@Body obstacleCourseRequest: ObstacleCourseRequest): ObstacleCourse
 }

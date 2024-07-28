@@ -43,7 +43,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.imageResource
@@ -58,17 +60,19 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun GamePage(navController: NavController){
-    val gameViewModel: MainViewModel = viewModel()
+    var gameViewModel: MainViewModel = viewModel()
     val viewState by gameViewModel.infoState
     val context = LocalContext.current
     val preferencesManager = PreferencesManager(context)
     val digital = FontFamily(Font(R.font.digital))
+    var tempTrap = viewState.trap
 
+    val obstacleCourse = viewState.obstacleCourse.obstacleCourse
+    var index by remember{ mutableStateOf(0)}
     var bullets by remember { mutableStateOf(0) }
     var movingBullet by remember { mutableStateOf(0) }
     var lives by remember { mutableStateOf(2) }
     var open by remember { mutableStateOf(false) }
-    var tempSpeed by remember { mutableStateOf(0f) }
     val powerupPage by animateFloatAsState(
         targetValue = if (open) 1f else 0f
     )
@@ -108,7 +112,7 @@ fun GamePage(navController: NavController){
         mutableStateOf(false)
     }
     var speed by remember{
-        mutableStateOf(10f)
+        mutableStateOf(5f)
     }
     var shieldsUp by remember{
         mutableStateOf(false)
@@ -196,7 +200,6 @@ fun GamePage(navController: NavController){
                 .fillMaxSize()
                 .pointerInput(Unit) {
                     detectTapGestures { offset ->
-                        println(offset)
                         if ((offset.x < 540f) and (column > 1)) {
                             column--
                         } else if ((offset.x > 540f) and (column < 3)) {
@@ -426,7 +429,7 @@ fun GamePage(navController: NavController){
                 contentDescription = "power up"
             )
         }
-        if (grantedTrap in  0..2){
+        if (grantedTrap == 2){
             Canvas(
                 modifier = Modifier
                     .offset(x = -(220).dp, y = 50.dp)
@@ -444,7 +447,7 @@ fun GamePage(navController: NavController){
                 drawArc(
                     color = Color.White,
                     startAngle = -215f,
-                    sweepAngle = 250f * (powerTimer.toFloat()/ 5f),
+                    sweepAngle = 250f * (powerTimer.toFloat()/ viewState.trap.amount),
                     useCenter = false,
                     size = size,
                     style = Stroke(width = 10f)
@@ -467,13 +470,6 @@ fun GamePage(navController: NavController){
         ){
             val size1 by animateIntAsState(
                 targetValue = if (tomState <= 1) 40 else 0,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioHighBouncy,
-                    stiffness = Spring.StiffnessMedium
-                )
-            )
-            val size2 by animateIntAsState(
-                targetValue = if (tomState <= 0) 40 else 0,
                 animationSpec = spring(
                     dampingRatio = Spring.DampingRatioHighBouncy,
                     stiffness = Spring.StiffnessMedium
@@ -549,7 +545,6 @@ fun GamePage(navController: NavController){
                                 else if (type[i] >= 0){
                                     pause = true
                                     collided = i
-                                    granted = !granted
                                     granted = !granted
                                     grantedPower = type[i]
                                     remove.add(i)
@@ -647,6 +642,7 @@ fun GamePage(navController: NavController){
                     }
                 }
             }
+
             for (i in 0..<obstaclesy.size){
                 obstaclesy[i] += speed
                 if (obstaclesy[i] > 2400f){
@@ -666,69 +662,18 @@ fun GamePage(navController: NavController){
             }
             remove.clear()
 
-            var decider = (0..40).random()
-            if (decider == 0){
-                var typeDecider = (0..50).random()
-                var add = true
-                var path = 2
-                var c1 = true
-                var c2 = true
-                var temp: Pair<Float, Float>
-                var first = obstaclesx.count { it == 50f }
-                var second = obstaclesx.count { it == 410f }
-                var third = obstaclesx.count { it == 770f }
-                do {
-                    temp = obstacleGenerator()
-                    if ((first > 1) and (second > 1) and (third > 1)){
-                        break
-                    }
-                }while (((first > 1) and (temp.first == 50f)) or ((second > 1)and (temp.first == 410f)) or ((third > 1) and (temp.first == 770f)))
 
-                for(i in 0..<obstaclesy.size){
-                    if (obstaclesx[i] == temp.first){
-                        if ((temp.second + 250f) > obstaclesy[i]){
-                            add = false
-                        }
-                    }
-                    else{
-                        if (((temp.second + 600f) > obstaclesy[i]) and c1){
-                            path -= 1
-                            c1 = false
-                        }
-                        else if (((temp.second + 600f) > obstaclesy[i]) and c2){
-                            path -= 1
-                            c2 = false
-                        }
-                    }
-                }
-                if ((add) and (path != 0)){
-                    obstaclesx.add(temp.first)
-                    obstaclesy.add(temp.second)
-                    if(typeDecider == 0){
-                        type.add(-1)
-                    }
-                    else if (typeDecider == 1){
-                        val addType = powerUps.indices.random()
-                        type.add(addType)
-                    }
-                    else if (typeDecider == 2){
-                        type.add(-3)
-                    }
-                    else{
-                        type.add(-2)
-                    }
-                }
-            }
-            if (obstaclesy.size < 2){
-                var temp = obstacleGenerator()
-                obstaclesx.add(temp.first)
-                obstaclesy.add(temp.second)
-                type.add(-2)
-            }
+
             if (!pause){
                 moving = (moving + 1) % 2
                 distance += 1
                 speed += 0.001f
+            }
+            if (distance%110 == 0){
+                index = (index+1)%5
+                if (index == 4){
+                    gameViewModel.fetchObstacleCourse(5)
+                }
             }
         }
         LaunchedEffect(key1 = column) {
@@ -879,33 +824,19 @@ fun GamePage(navController: NavController){
             if (trap > 0){
                 powerTimer = 0
                 shieldsUp = false
-                grantedTrap = globalTraps.indices.random()
+                grantedTrap = viewState.trap.type
+                val trapAmount = viewState.trap.amount
                 openTrapPage = true
                 delay(3500)
                 openTrapPage = false
                 delay(1000)
                 pause = false
-                if (grantedTrap == 0){
-                    if (tempSpeed == 0f) tempSpeed = speed
-                    speed = 30f
-                    for (i in 0..4){
-                        delay(1000)
-                        powerTimer += 1
-                    }
-                    speed = tempSpeed
-                    tempSpeed = 0f
-                    powerTimer = 0
-                }
-                else if (grantedTrap == 1){
-                    for (i in 0..4){
-                        delay(1000)
-                        powerTimer += 1
-                    }
-                    powerTimer = 0
+                if (grantedTrap == 1){
+                    speed += trapAmount.toFloat()
                 }
                 else if (grantedTrap == 2){
                     shieldsUp = true
-                    for (i in 0..4){
+                    for (i in 0..<trapAmount){
                         delay(1000)
                         powerTimer += 1
                     }
@@ -913,10 +844,11 @@ fun GamePage(navController: NavController){
                     powerTimer = 0
                 }
                 else if (grantedTrap == 3){
-                    showBomb = true
-                    bombs += 1
+                    tomState += trapAmount
+                    lives -= trapAmount
                 }
                 grantedTrap = -1
+                gameViewModel.fetchTrap()
             }
         }
         var removeBullets = mutableListOf<Int>()
@@ -950,6 +882,16 @@ fun GamePage(navController: NavController){
         LaunchedEffect(key1 = temp) {
             tomState = 2 - temp
             lives = temp
+        }
+        LaunchedEffect(key1 = index) {
+            if (obstacleCourse.size > 1){
+                val tempList = converter(obstacleCourse[index])
+                obstaclesx.add(tempList[0].toFloat())
+                obstaclesy.add(tempList[1].toFloat())
+                type.add(tempList[2])
+                println(obstacleCourse)
+                println(index)
+            }
         }
 
         if (revived.value){
@@ -990,18 +932,6 @@ fun GamePage(navController: NavController){
             navController.navigate(Screen.MainPage.route)
             toHome.value = false
         }
-
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Transparent)
-        ){
-            Text(text = "$temp")
-            Text(
-                modifier = Modifier.align(Alignment.TopEnd),
-                text = "${viewState.obstacleLimit.obstacleLimit}"
-            )
-        }
     }
 
 
@@ -1041,12 +971,13 @@ fun GamePage(navController: NavController){
             .background(Color.White.copy(alpha = 0.5f))
             .clickable { }
     ){
-        if (grantedTrap != -1){
-            Image(
+        if (grantedTrap != -1) {
+            Text(
+                text = "${viewState.trap.description} : ${grantedTrap}",
                 modifier = Modifier
-                    .align(Alignment.Center),
-                painter = painterResource(id = globalTraps[grantedTrap]),
-                contentDescription = "power up"
+                    .align(Alignment.Center)
+                    .padding(20.dp),
+                fontSize = 30.sp
             )
         }
     }

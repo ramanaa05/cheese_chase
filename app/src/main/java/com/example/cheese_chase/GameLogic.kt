@@ -15,3 +15,25 @@ fun obstacleGenerator(): Pair<Float, Float> {
     }
     return Pair(x, y)
 }
+
+fun converter(course: String): List<Int> {
+    var returnx: Int = 0
+    val returny: Int = 0
+    var returnType: Int = -2
+    when{
+        (course == "L") -> {
+            returnx = 50
+        }
+        (course == "M") -> {
+            returnx = 410
+        }
+        (course == "R") ->{
+            returnx = 770
+        }
+        (course == "B") -> {
+            returnx = listOf(50, 410, 770).random()
+            returnType = listOf(-3, -1).random()
+        }
+    }
+    return listOf(returnx, returny, returnType)
+}
